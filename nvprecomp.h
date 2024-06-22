@@ -118,6 +118,17 @@
 #define NVDBG_LEVEL_VSHADER_MAN         0x00000200  // print info about the vertex shader manager
 #endif
 
+// DX8 stuff
+#define CELSIUS_CAPS_MAX_STREAMS                  16
+#define CELSIUS_CAPS_MAX_PSHADER_CONSTS           16
+#define CELSIUS_CAPS_MAX_VSHADER_CONSTS           0
+#define CELSIUS_CAPS_MAX_VSHADER_TEMPS            0
+
+// general HW capabilities used internally by driver ------------------------
+
+#define CELSIUS_NUM_COMBINERS            2           // virtual combiner stages
+#define CELSIUS_NUM_TEXTURES             2           // texture units
+
 #define KELVIN_NUM_COMBINERS            8           // virtual combiner stages
 #define KELVIN_NUM_MATRICES             4           // blendable matrices
 #define KELVIN_NUM_TEXTURES             4           // texture units
@@ -163,6 +174,18 @@
 
 // This max required number. Device could have more registers. Check caps.
 #define D3DVS_CONSTREG_MAX_V1_1         96
+
+// NV25
+#define NV097_SET_SHADER_STAGE_PROGRAM_STAGE3_DEPENDENT_RGB_3D          0x00000013
+#define NV097_SET_SHADER_STAGE_PROGRAM_STAGE3_DEPENDENT_RGB_CUBE_MAP    0x00000014
+#define NV097_SET_SHADER_STAGE_PROGRAM_STAGE3_DOT_PASS_THROUGH          0x00000015
+#define NV097_SET_SHADER_STAGE_PROGRAM_STAGE3_DOT_1D                    0x00000016
+#define NV097_SET_SHADER_STAGE_PROGRAM_STAGE3_DOT_AFFINE_DEPTH_REPLACE  0x00000017
+
+#define NV097_SET_COMBINER_COLOR_OCW_AB_TRUNC_ENABLE                    25:25
+#define NV097_SET_COMBINER_COLOR_OCW_CD_TRUNC_ENABLE                    24:24
+#define NV097_SET_COMBINER_COLOR_OCW_AB_ALPHA_ONLY                      21:21
+#define NV097_SET_COMBINER_COLOR_OCW_CD_ALPHA_ONLY                      20:20
 
 typedef struct _GLOBALDATA {
     struct {

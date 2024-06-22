@@ -106,7 +106,8 @@ const DWORD CPixelShader::PSInstructionType[] = {
     PSHAD_INS, // D3DSIO_MUL
     ~0, ~0,
     PSHAD_INS, // D3DSIO_DP3
-    ~0, ~0, ~0, ~0, ~0, ~0, ~0, ~0, ~0,
+    PSHAD_INS, // D3DSIO_DP4
+    ~0, ~0, ~0, ~0, ~0, ~0, ~0, ~0,
     PSHAD_INS, // D3DSIO_LRP
     ~0, ~0, ~0, ~0, ~0, ~0, ~0, ~0, ~0,
     ~0, ~0, ~0, ~0, ~0, ~0, ~0, ~0, ~0,
@@ -135,6 +136,14 @@ const DWORD CPixelShader::PSInstructionType[] = {
     ~0, ~0,
     PSHAD_INS, // D3DSIO_CND
     PSHAD_DEF, // D3DSIO_DEF
+    PSHAD_TEX, // D3DSIO_TEXREG2RGB
+    PSHAD_TEX, // D3DSIO_TEXDP3TEX
+    PSHAD_TEX, // D3DSIO_TEXM3x2DEPTH
+    PSHAD_TEX, // D3DSIO_TEXDP3
+    PSHAD_TEX, // D3DSIO_TEXM3x3
+    PSHAD_TEX, // D3DSIO_TEXDEPTH
+    PSHAD_INS, // D3DSIO_CMP
+    ~0,
 };
 
 
@@ -151,7 +160,8 @@ const char * CPixelShader::PSInstructionStrings[] = {
     "mul",
     0, 0,
     "dp3",
-    0, 0, 0, 0, 0, 0, 0, 0, 0,
+    "dp4",
+    0, 0, 0, 0, 0, 0, 0, 0,
     "lrp",
     0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -180,6 +190,13 @@ const char * CPixelShader::PSInstructionStrings[] = {
     0, 0,
     "cnd",
     "def",
+    "texreg2rgb",
+    "texdp3tex",
+    "texm3x2depth",
+    "texdp3",
+    "texm3x3",
+    "texdepth",
+    "cmp",
 };
 
 const char * CPixelShader::PSRegTypeToPrefix[] = {"r", "v", "c", "t"};
@@ -209,11 +226,11 @@ const char * CPixelShader::PSProgramNames[] = {
     "DEPENDENT_GB",
     "DOT_PRODUCT",
     "DOT_REFLECT_SPECULAR_CONST",
-    "<invalid>",
-    "<invalid>",
-    "<invalid>",
-    "<invalid>",
-    "<invalid>",
+    "DEPENDENT_RGB_3D",
+    "DEPENDENT_RGB_CUBE_MAP",
+    "DOT_PASS_THROUGH",
+    "DOT_1D",
+    "DOT_AFFINE_DEPTH_REPLACE",
     "<invalid>",
     "<invalid>",
     "<invalid>",
@@ -243,7 +260,17 @@ const bool CPixelShader::PSShaderUsesTexture[] = {
     TRUE,    // D3DSIO_TEXM3x3TEX
     TRUE,    // D3DSIO_TEXM3x3DIFF
     TRUE,    // D3DSIO_TEXM3x3SPEC
-    TRUE     // D3DSIO_TEXM3x3VSPEC
+    TRUE,    // D3DSIO_TEXM3x3VSPEC
+    FALSE,   // D3DSIO_EXPP
+    FALSE,   // D3DSIO_LOGP
+    FALSE,   // D3DSIO_CND
+    FALSE,   // D3DSIO_DEF
+    TRUE,    // D3DSIO_TEXREG2RGB
+    TRUE,    // D3DSIO_TEXDP3TEX
+    FALSE,   // D3DSIO_TEXM3x2DEPTH
+    FALSE,   // D3DSIO_TEXDP3
+    FALSE,   // D3DSIO_TEXM3x3
+    FALSE,   // D3DSIO_TEXDEPTH
 };
 
 const bool CPixelShader::PSIsProjective[] = {
@@ -266,6 +293,19 @@ const bool CPixelShader::PSIsProjective[] = {
     FALSE, // NV097_SET_SHADER_STAGE_PROGRAM_STAGE3_DEPENDENT_GB
     FALSE, // NV097_SET_SHADER_STAGE_PROGRAM_STAGE2_DOT_PRODUCT
     FALSE, // NV097_SET_SHADER_STAGE_PROGRAM_STAGE3_DOT_REFLECT_SPECULAR_CONST
+    FALSE, // NV097_SET_SHADER_STAGE_PROGRAM_STAGE3_DEPENDENT_RGB_3D
+    FALSE, // NV097_SET_SHADER_STAGE_PROGRAM_STAGE3_DEPENDENT_RGB_CUBE_MAP
+    FALSE, // NV097_SET_SHADER_STAGE_PROGRAM_STAGE3_DOT_PASS_THROUGH
+    FALSE, // NV097_SET_SHADER_STAGE_PROGRAM_STAGE3_DOT_1D
+    FALSE, // NV097_SET_SHADER_STAGE_PROGRAM_STAGE3_DOT_AFFINE_DEPTH_REPLACE
+    FALSE, // NV097_SET_SHADER_STAGE_PROGRAM_STAGE3
+    FALSE, // NV097_SET_SHADER_STAGE_PROGRAM_STAGE3
+    FALSE, // NV097_SET_SHADER_STAGE_PROGRAM_STAGE3
+    FALSE, // NV097_SET_SHADER_STAGE_PROGRAM_STAGE3
+    TRUE,  // NV097_SET_SHADER_STAGE_PROGRAM_STAGE3
+    TRUE,  // NV097_SET_SHADER_STAGE_PROGRAM_STAGE3
+    FALSE, // NV097_SET_SHADER_STAGE_PROGRAM_STAGE3
+    FALSE, // NV097_SET_SHADER_STAGE_PROGRAM_STAGE3
 };
 
 // Kelvin shaders are a function of both the type of shader and
@@ -344,6 +384,56 @@ const int CPixelShader::PSD3DTexToNVShader[][4] = {
         ~0,
         ~0,
         NV097_SET_SHADER_STAGE_PROGRAM_STAGE3_DOT_REFLECT_SPECULAR
+    }, {
+        ~0,                                                               // D3DSIO_EXPP
+        ~0,
+        ~0,
+        ~0,
+    }, {
+        ~0,                                                               // D3DSIO_LOGP
+        ~0,
+        ~0,
+        ~0,
+    }, {
+        ~0,                                                               // D3DSIO_CND
+        ~0,
+        ~0,
+        ~0,
+    }, {
+        ~0,                                                               // D3DSIO_DEF
+        ~0,
+        ~0,
+        ~0,
+    }, {
+        ~0,                                                               // D3DSIO_TEXREG2RGB
+        ~0,
+        NV097_SET_SHADER_STAGE_PROGRAM_STAGE3_DEPENDENT_RGB_3D,
+        NV097_SET_SHADER_STAGE_PROGRAM_STAGE3_DEPENDENT_RGB_CUBE_MAP,
+    }, {
+        ~0,                                                               // D3DSIO_TEXDP3TEX
+        NV097_SET_SHADER_STAGE_PROGRAM_STAGE3_DOT_1D,
+        ~0,
+        ~0,
+    }, {
+        NV097_SET_SHADER_STAGE_PROGRAM_STAGE3_DOT_ZW,                     // D3DSIO_TEXM3x2DEPTH
+        NV097_SET_SHADER_STAGE_PROGRAM_STAGE3_DOT_ZW,
+        NV097_SET_SHADER_STAGE_PROGRAM_STAGE3_DOT_ZW,
+        NV097_SET_SHADER_STAGE_PROGRAM_STAGE3_DOT_ZW,
+    }, {
+        NV097_SET_SHADER_STAGE_PROGRAM_STAGE3_DOT_PASS_THROUGH,           // D3DSIO_TEXDP3
+        NV097_SET_SHADER_STAGE_PROGRAM_STAGE3_DOT_PASS_THROUGH,
+        NV097_SET_SHADER_STAGE_PROGRAM_STAGE3_DOT_PASS_THROUGH,
+        NV097_SET_SHADER_STAGE_PROGRAM_STAGE3_DOT_PASS_THROUGH,
+    }, {
+        NV097_SET_SHADER_STAGE_PROGRAM_STAGE3_DOT_STR_3D,                 // D3DSIO_TEXM3x3
+        NV097_SET_SHADER_STAGE_PROGRAM_STAGE3_DOT_STR_3D,
+        NV097_SET_SHADER_STAGE_PROGRAM_STAGE3_DOT_STR_3D,
+        NV097_SET_SHADER_STAGE_PROGRAM_STAGE3_DOT_STR_3D,
+    }, {
+        NV097_SET_SHADER_STAGE_PROGRAM_STAGE3_DOT_AFFINE_DEPTH_REPLACE,   // D3DSIO_TEXDEPTH
+        NV097_SET_SHADER_STAGE_PROGRAM_STAGE3_DOT_AFFINE_DEPTH_REPLACE,
+        NV097_SET_SHADER_STAGE_PROGRAM_STAGE3_DOT_AFFINE_DEPTH_REPLACE,
+        NV097_SET_SHADER_STAGE_PROGRAM_STAGE3_DOT_AFFINE_DEPTH_REPLACE,
     }
 };
 
@@ -356,7 +446,8 @@ const DWORD CPixelShader::PSNumSrcRegs[] = {
      2,                                 // D3DSIO_MUL
     -1, -1,                             // Undefined for pixel shaders
      2,                                 // D3DSIO_DP3
-    -1, -1, -1, -1, -1, -1, -1, -1, -1, // Undefined for pixel shaders
+     2,                                 // D3DSIO_DP4
+    -1, -1, -1, -1, -1, -1, -1, -1,     // Undefined for pixel shaders
      3,                                 // D3DSIO_LRP
     -1, -1, -1, -1, -1, -1, -1, -1, -1, // Undefined for pixel shaders
     -1, -1, -1, -1, -1, -1, -1, -1, -1, // Undefined for pixel shaders
@@ -382,8 +473,17 @@ const DWORD CPixelShader::PSNumSrcRegs[] = {
      1,                                 // D3DSIO_TEXM3x3DIFF:
      2,                                 // D3DSIO_TEXM3x3SPEC:
      1,                                 // D3DSIO_TEXM3x3VSPEC:
-     -1, -1,                            // Undefined for pixel shaders
+    -1, -1,                             // Undefined for pixel shaders
      3,                                 // D3DSIO_CND
+    -1,                                 // D3DSIO_DEF
+     1,                                 // D3DSIO_TEXREG2RGB
+     0,                                 // D3DSIO_TEXDP3TEX
+     1,                                 // D3DSIO_TEXM3x2DEPTH
+     1,                                 // D3DSIO_TEXDP3
+     1,                                 // D3DSIO_TEXM3x3
+     1,                                 // D3DSIO_TEXDEPTH
+     3,                                 // D3DSIO_CMP
+     0,                                 // D3DSIO_BEM
 };
 
 
@@ -396,7 +496,8 @@ const DWORD CPixelShader::PSNumDstRegs[] = {
      1,                                 // D3DSIO_MUL
     -1, -1,                             // Undefined for pixel shaders
      1,                                 // D3DSIO_DP3
-    -1, -1, -1, -1, -1, -1, -1, -1, -1, // Undefined for pixel shaders
+     1,                                 // D3DSIO_DP4
+    -1, -1, -1, -1, -1, -1, -1, -1,     // Undefined for pixel shaders
      1,                                 // D3DSIO_LRP
     -1, -1, -1, -1, -1, -1, -1, -1, -1, // Undefined for pixel shaders
     -1, -1, -1, -1, -1, -1, -1, -1, -1, // Undefined for pixel shaders
@@ -424,6 +525,15 @@ const DWORD CPixelShader::PSNumDstRegs[] = {
      1,                                 // D3DSIO_TEXM3x3VSPEC:
     -1, -1,                             // Undefined for pixel shaders
      1,                                 // D3DSIO_CND
+    -1,                                 // D3DSIO_DEF
+     1,                                 // D3DSIO_TEXREG2RGB
+     1,                                 // D3DSIO_TEXDP3TEX
+     1,                                 // D3DSIO_TEXM3x2DEPTH
+     1,                                 // D3DSIO_TEXDP3
+     1,                                 // D3DSIO_TEXM3x3
+     1,                                 // D3DSIO_TEXDEPTH
+     1,                                 // D3DSIO_CMP
+     0,                                 // D3DSIO_BEM
 };
 
 void (CPixelShader::* const CPixelShader::PSInstructionLUT[])(PSHAD_INSTRUCTION_ARGS) = {
@@ -435,7 +545,8 @@ void (CPixelShader::* const CPixelShader::PSInstructionLUT[])(PSHAD_INSTRUCTION_
     &CPixelShader::InstructionMUL,   // D3DSIO_MUL
     0, 0,                            // Undefined for pixel shaders
     &CPixelShader::InstructionDP3,   // D3DSIO_DP3
-    0, 0, 0, 0, 0, 0, 0, 0, 0,       // Undefined for pixel shaders
+    &CPixelShader::InstructionDP4,   // D3DSIO_DP4
+    0, 0, 0, 0, 0, 0, 0, 0,          // Undefined for pixel shaders
     &CPixelShader::InstructionLRP,   // D3DSIO_LRP
     0, 0, 0, 0, 0, 0, 0, 0, 0,       // Undefined for pixel shaders
     0, 0, 0, 0, 0, 0, 0, 0, 0,       // Undefined for pixel shaders
@@ -450,6 +561,9 @@ void (CPixelShader::* const CPixelShader::PSInstructionLUT[])(PSHAD_INSTRUCTION_
     0, 0, 0, 0, 0, 0, 0, 0, 0,       // Undefined for pixel shaders
     0, 0, 0, 0, 0, 0, 0,             // Undefined for pixel shaders
     &CPixelShader::InstructionCND,   // D3DSIO_CND
+    0, 0, 0, 0, 0, 0, 0,             // Undefined for pixel shaders
+    &CPixelShader::InstructionCMP,   // D3DSIO_CMP
+    0,                               // Undefined for pixel shaders
 };
 
 ////////////////////////////////////////////////////////////////
@@ -478,10 +592,10 @@ void (CPixelShader::* const CPixelShader::PSInstructionLUT[])(PSHAD_INSTRUCTION_
 
 
 // Sets the global shift/bias settings in the OCW for this stage
-#define SetCombinerOutputShiftSat(stage, color, shift, sat) \
+#define SetCombinerOutputShift(stage, color, shift) \
     do { \
         m_cw[stage][color][PSHAD_OCW] &= ~DRF_SHIFTMASK(NV097_SET_COMBINER_COLOR_OCW_OP); \
-        m_cw[stage][color][PSHAD_OCW] |= DRF_NUM(097, _SET_COMBINER_COLOR_OCW, _OP, (shift << 1)); /* need saturation support */\
+        m_cw[stage][color][PSHAD_OCW] |= DRF_NUM(097, _SET_COMBINER_COLOR_OCW, _OP, (shift << 1)); \
     } while (0);
 
 
@@ -505,7 +619,8 @@ void CPixelShader::InstructionNOP(PSHAD_INSTRUCTION_ARGS) {
     SetCombinerOutput(stage, color, CD, NV_REG_ZERO, FALSE, FALSE);
     SetCombinerSumOutput(stage, color, NV_REG_ZERO, FALSE);
 
-    SetCombinerOutputShiftSat(stage, color, 0, 0);
+    SetCombinerOutputShift(stage, color, 0);
+    stage++;
 }
 
 void CPixelShader::InstructionMOV(PSHAD_INSTRUCTION_ARGS) {
@@ -514,7 +629,8 @@ void CPixelShader::InstructionMOV(PSHAD_INSTRUCTION_ARGS) {
     SetCombinerInput(stage, color, B, NV_MAPPING_UNSIGNED_INVERT, FALSE,    NV_REG_ZERO);
     SetCombinerOutput(stage, color, AB, dst[0], FALSE, FALSE);
 
-    SetCombinerOutputShiftSat(stage, color, shift, sat);
+    SetCombinerOutputShift(stage, color, shift);
+    stage++;
 }
 
 void CPixelShader::InstructionMUL(PSHAD_INSTRUCTION_ARGS) {
@@ -523,7 +639,8 @@ void CPixelShader::InstructionMUL(PSHAD_INSTRUCTION_ARGS) {
     SetCombinerInput(stage, color, B, map[1], alpha[1], src[1]);
     SetCombinerOutput(stage, color, AB, dst[0], FALSE, FALSE);
 
-    SetCombinerOutputShiftSat(stage, color, shift, sat);
+    SetCombinerOutputShift(stage, color, shift);
+    stage++;
 }
 
 void CPixelShader::InstructionDP3(PSHAD_INSTRUCTION_ARGS) {
@@ -535,7 +652,8 @@ void CPixelShader::InstructionDP3(PSHAD_INSTRUCTION_ARGS) {
         SetCombinerInput(stage, color, B, map[1], alpha[1], src[1]);
         SetCombinerOutput(stage, color, AB, dst[0], TRUE, FALSE);
 
-        SetCombinerOutputShiftSat(stage, color, shift, sat);
+        SetCombinerOutputShift(stage, color, shift);
+        stage++;
     } else {
         // Here, we replicate blue to alpha on the color side if the program requests the DP3
         // to go to rgba.  It's something of a hack, but it's the only instruction where we
@@ -544,7 +662,30 @@ void CPixelShader::InstructionDP3(PSHAD_INSTRUCTION_ARGS) {
         
         // We don't care about what actually happens on the alpha side, since the alpha
         // replication overwrites it anyway.
-        InstructionNOP(stage, color, shift, sat, dst, src, alpha, map);
+        InstructionNOP(stage, color, shift, dst, src, alpha, map);
+    }
+}
+
+void CPixelShader::InstructionDP4(PSHAD_INSTRUCTION_ARGS) {
+    DWORD src3[3] = { src[0], src[1], dst[0] };
+    DWORD alpha3[3] = { TRUE, TRUE, color };
+    DWORD map3[3] = { map[0], map[1], NV_MAPPING_SIGNED_IDENTITY };
+    if (color == PSHAD_COLOR) {
+        // O = dot(A.RGB, B.RGB)
+        // O = mad(A.ALPHA, B.ALPHA, O)
+        InstructionDP3(stage, PSHAD_COLOR, 0, dst, src, alpha, map);
+        InstructionMAD(stage, PSHAD_COLOR, shift, dst, src3, alpha3, map3);
+    } else {
+        DWORD alpha2[2] = { FALSE, FALSE };
+        // O = dot(A.RGB, B.RGB).ALPHA
+        // O = mad(A.ALPHA, B,ALPHA, O)
+        InstructionDP3(stage, PSHAD_COLOR, 0, dst, src, alpha2, map);
+
+        // TODO
+        m_cw[stage - 1][PSHAD_COLOR][PSHAD_OCW] |= DRF_NUM(097, _SET_COMBINER_COLOR_OCW, _BLUETOALPHA_AB, TRUE);
+        m_cw[stage - 1][PSHAD_COLOR][PSHAD_OCW] |= DRF_NUM(097, _SET_COMBINER_COLOR_OCW, _AB_ALPHA_ONLY, TRUE);;
+
+        InstructionMAD(stage, PSHAD_ALPHA, shift, dst, src3, alpha3, map3);
     }
 }
 
@@ -557,7 +698,8 @@ void CPixelShader::InstructionADD(PSHAD_INSTRUCTION_ARGS) {
 
     SetCombinerSumOutput(stage, color, dst[0], FALSE);
 
-    SetCombinerOutputShiftSat(stage, color, shift, sat);
+    SetCombinerOutputShift(stage, color, shift);
+    stage++;
 }
 
 void CPixelShader::InstructionSUB(PSHAD_INSTRUCTION_ARGS) {
@@ -569,7 +711,8 @@ void CPixelShader::InstructionSUB(PSHAD_INSTRUCTION_ARGS) {
 
     SetCombinerSumOutput(stage, color, dst[0], FALSE);
 
-    SetCombinerOutputShiftSat(stage, color, shift, sat);
+    SetCombinerOutputShift(stage, color, shift);
+    stage++;
 }
 
 void CPixelShader::InstructionMAD(PSHAD_INSTRUCTION_ARGS) {
@@ -581,7 +724,8 @@ void CPixelShader::InstructionMAD(PSHAD_INSTRUCTION_ARGS) {
 
     SetCombinerSumOutput(stage, color, dst[0], FALSE);
 
-    SetCombinerOutputShiftSat(stage, color, shift, sat);
+    SetCombinerOutputShift(stage, color, shift);
+    stage++;
 }
 
 void CPixelShader::InstructionLRP(PSHAD_INSTRUCTION_ARGS) {
@@ -593,7 +737,8 @@ void CPixelShader::InstructionLRP(PSHAD_INSTRUCTION_ARGS) {
 
     SetCombinerSumOutput(stage, color, dst[0], FALSE);
 
-    SetCombinerOutputShiftSat(stage, color, shift, sat);
+    SetCombinerOutputShift(stage, color, shift);
+    stage++;
 }
 
 void CPixelShader::InstructionCND(PSHAD_INSTRUCTION_ARGS) {
@@ -605,7 +750,30 @@ void CPixelShader::InstructionCND(PSHAD_INSTRUCTION_ARGS) {
 
     SetCombinerSumOutput(stage, color, dst[0], TRUE);
 
-    SetCombinerOutputShiftSat(stage, color, shift, sat);
+    SetCombinerOutputShift(stage, color, shift);
+    stage++;
+}
+
+void CPixelShader::InstructionCMP(PSHAD_INSTRUCTION_ARGS) {
+    // O = trunc(r0)
+    // O = lerp(O, C*1, A*1)
+    SetCombinerInput(stage, color, A, NV_MAPPING_UNSIGNED_IDENTITY, alpha[0], src[0]);
+    SetCombinerInput(stage, color, B, NV_MAPPING_UNSIGNED_INVERT,   FALSE,    NV_REG_ZERO);
+    SetCombinerInput(stage, color, C, NV_MAPPING_SIGNED_IDENTITY,   FALSE,    NV_REG_ZERO);
+    SetCombinerInput(stage, color, D, NV_MAPPING_SIGNED_IDENTITY,   FALSE,    NV_REG_ZERO);
+
+    // TODO
+    m_cw[stage][color][PSHAD_OCW] &= ~DRF_SHIFTMASK(NV097_SET_COMBINER_COLOR_OCW_MUX_ENABLE);
+    m_cw[stage][color][PSHAD_OCW] &= ~DRF_SHIFTMASK(NV097_SET_COMBINER_COLOR_OCW_AB_DOT_ENABLE);
+    m_cw[stage][color][PSHAD_OCW] &= ~DRF_SHIFTMASK(NV097_SET_COMBINER_COLOR_OCW_CD_DOT_ENABLE);
+    m_cw[stage][color][PSHAD_OCW] |= DRF_NUM(097, _SET_COMBINER_COLOR_OCW, _SUM_DST, dst[0]);
+    m_cw[stage][color][PSHAD_OCW] |= DRF_NUM(097, _SET_COMBINER_COLOR_OCW, _AB_TRUNC_ENABLE, TRUE);
+    stage++;
+
+    DWORD src3[3] = { dst[0], src[2], src[1] };
+    DWORD alpha3[3] = { color, alpha[2], alpha[1] };
+    DWORD map3[3] = { NV_MAPPING_SIGNED_IDENTITY, map[2], map[1] };
+    InstructionLRP(stage, color, shift, dst, src3, alpha3, map3);
 }
 
 void CPixelShader::InstructionNV_MMA(PSHAD_INSTRUCTION_ARGS) {
@@ -617,7 +785,8 @@ void CPixelShader::InstructionNV_MMA(PSHAD_INSTRUCTION_ARGS) {
 
     SetCombinerSumOutput(stage, color, dst[0], FALSE);
 
-    SetCombinerOutputShiftSat(stage, color, shift, sat);
+    SetCombinerOutputShift(stage, color, shift);
+    stage++;
 }
 
 void CPixelShader::InstructionNV_DD (PSHAD_INSTRUCTION_ARGS) {
@@ -636,6 +805,7 @@ void CPixelShader::InstructionNV_DD (PSHAD_INSTRUCTION_ARGS) {
         m_cw[stage][PSHAD_COLOR][PSHAD_OCW] |= DRF_NUM(097, _SET_COMBINER_COLOR_OCW, _BLUETOALPHA_AB, TRUE);
         m_cw[stage][PSHAD_COLOR][PSHAD_OCW] |= DRF_NUM(097, _SET_COMBINER_COLOR_OCW, _BLUETOALPHA_CD, TRUE);
     }
+    stage++;
 }
 
 void CPixelShader::InstructionNV_MD (PSHAD_INSTRUCTION_ARGS) {
@@ -653,6 +823,7 @@ void CPixelShader::InstructionNV_MD (PSHAD_INSTRUCTION_ARGS) {
     } else {
         m_cw[stage][PSHAD_COLOR][PSHAD_OCW] |= DRF_NUM(097, _SET_COMBINER_COLOR_OCW, _BLUETOALPHA_CD, TRUE);
     }
+    stage++;
 }
 
 void CPixelShader::InstructionNV_MM (PSHAD_INSTRUCTION_ARGS) {
@@ -665,6 +836,7 @@ void CPixelShader::InstructionNV_MM (PSHAD_INSTRUCTION_ARGS) {
 
     SetCombinerOutput(stage, color, AB, dst[0], TRUE, FALSE);
     SetCombinerOutput(stage, color, CD, dst[1], TRUE, FALSE);
+    stage++;
 }
 
 void CPixelShader::InstructionNV_SPF(PSHAD_INSTRUCTION_ARGS) {
@@ -906,11 +1078,6 @@ BOOL CPixelShader::create
         m_shaderStageProgram[i] = PSHAD_UNUSED;
     }
 
-    for (i=0; i<NV_REG_MAX; i++) {
-        bSaturateOutput[i][PSHAD_COLOR] = false;
-        bSaturateOutput[i][PSHAD_ALPHA] = false;
-    }
-
     m_texturesUsed = 0;
     m_textureStageSwap = 0;
 
@@ -1019,20 +1186,19 @@ BOOL CPixelShader::create
                 return FALSE;
             }
 
+            DWORD dwColorStage = m_dwStage;
+            DWORD dwAlphaStage = m_dwStage;
             if (mask & D3DSP_WRITEMASK_RGB) {
-                bSaturateOutput[dst[0]][PSHAD_COLOR] = sat ? true : false;
-                (this->*PSInstructionLUT[opcode])(m_dwStage, PSHAD_COLOR, shift, sat, dst, src, rgbAlpha, map);
+                (this->*PSInstructionLUT[opcode])(dwColorStage, PSHAD_COLOR, shift, dst, src, rgbAlpha, map);
             }
             if (mask & D3DSP_WRITEMASK_A) {
-                bSaturateOutput[dst[0]][PSHAD_ALPHA] = sat ? true : false;
-                (this->*PSInstructionLUT[opcode])(m_dwStage, PSHAD_ALPHA, shift, sat, dst, src, alphaAlpha, map);
+                (this->*PSInstructionLUT[opcode])(dwAlphaStage, PSHAD_ALPHA, shift, dst, src, alphaAlpha, map);
             }
+            m_dwStage = dwColorStage > dwAlphaStage ? dwColorStage : dwAlphaStage;
 
 #ifdef DEBUG
             DBGPrintInstruction(op, dstop, srcop);
 #endif
-
-            m_dwStage++;
         } else if (PSInstructionType[opcode] == PSHAD_TEX) {
             nvAssert(opcode >= D3DSIO_TEXCOORD);
             nvAssert(opcode <= D3DSIO_TEXM3x3VSPEC);
@@ -1112,8 +1278,8 @@ BOOL CPixelShader::create
 
     if (m_dwStage == 0) {
         // Make sure we have a valid combiner setup
-        InstructionNOP(0, PSHAD_COLOR, 0, 0, 0, 0, 0, 0);
-        InstructionNOP(0, PSHAD_ALPHA, 0, 0, 0, 0, 0, 0);
+        InstructionNOP(m_dwStage, PSHAD_COLOR, 0, 0, 0, 0, 0);
+        InstructionNOP(m_dwStage, PSHAD_ALPHA, 0, 0, 0, 0, 0);
         m_dwStage = 1;
     }
 

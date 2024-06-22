@@ -98,7 +98,7 @@ extern "C"
 
 #define PSHAD_MAX_CONSTANTS       NV_CAPS_MAX_PSHADER_CONSTS
 
-#define PSHAD_INSTRUCTION_ARGS DWORD stage, DWORD color, DWORD shift, DWORD sat, DWORD *dst, DWORD *src, DWORD *alpha, DWORD *map
+#define PSHAD_INSTRUCTION_ARGS DWORD& stage, DWORD color, DWORD shift, DWORD *dst, DWORD *src, DWORD *alpha, DWORD *map
 
 #define PSHAD_MAX_SRC_ARGS_PER_INSTRUCTION 7
 #define PSHAD_MAX_DST_ARGS_PER_INSTRUCTION 2
@@ -212,12 +212,14 @@ protected:
     void InstructionMOV(PSHAD_INSTRUCTION_ARGS);
     void InstructionMUL(PSHAD_INSTRUCTION_ARGS);
     void InstructionDP3(PSHAD_INSTRUCTION_ARGS);
+    void InstructionDP4(PSHAD_INSTRUCTION_ARGS);
     void InstructionNOP(PSHAD_INSTRUCTION_ARGS);
     void InstructionADD(PSHAD_INSTRUCTION_ARGS);
     void InstructionSUB(PSHAD_INSTRUCTION_ARGS);
     void InstructionMAD(PSHAD_INSTRUCTION_ARGS);
     void InstructionLRP(PSHAD_INSTRUCTION_ARGS);
     void InstructionCND(PSHAD_INSTRUCTION_ARGS);
+    void InstructionCMP(PSHAD_INSTRUCTION_ARGS);
 
 	// NVIDIA internal
 	void InstructionNV_MMA(PSHAD_INSTRUCTION_ARGS);
